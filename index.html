@@ -4,12 +4,12 @@
 <head>
     <title>Country Info</title>
     <meta charset="UTF-8">
-    <meta name="description" content="A simple interface displaying country specific data.">
-    <meta name="keywords" content="Country Information, Country Info, Country Data, Country Comparisons, Country Populations, Country Areas, Country Maps, Country Search">
+    <meta name="description" content="A simple interface for searching and displaying country specific data. Search for data using the country name, alpha code or capital city.">
+    <meta name="keywords" content="Country Information, Country Info, Country Data, Country Comparisons, Country Search, Country Summaries, Country Finder, Search For Countries By Name, Search For Countries By Code, Search For Countries By Capital, Compare Country Populations, Compare Country Areas">
     <meta name="author" content="Zachary Kahl">
     <meta name="year" content="2018">
     <meta name="theme-color" content="#1a1a1a">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
     
     <!-- css -->
     <!-- Bootstrap CSS -->
@@ -54,14 +54,15 @@
 
     <!-- content -->
     <div id="content" class="container-fluid">
-
+       
         <!-- Header -->
         <div id="header" class="row p-3 text-center">
+           
             <div id="headerText" class="offset-md-2 col-xs-12 col-md-8">
                 <div>
-                    <span id="countryName" v-model="country.name" class="h1 text-white" v-if="show < 3">{{ country.name | removeParenthesis }}</span>
+                    <span id="countryName" v-model="country.name" class="text-white h1" v-if="show < 3">{{ country.name | removeParenthesis }}</span>
                     <span id="countryCode" class="h6 text-white" v-model="country.code" v-if="show < 3"> ({{ country.code }})</span>
-                    <span class="h1 text-white" v-if="show === 3" style="font-size: 3.5rem">Compare Countries</span>
+                    <span id="compareCountries" class="text-white h1" v-if="show === 3">Compare Countries</span>
                 </div>
                 <div id="description" class="collapse show">
                     <p class="lead text-white mt-2 mb-1" v-if="show < 3" style="font-size: 14px">{{ country.desc }}</p>
@@ -128,23 +129,23 @@
                 </div>
             </div>
             <div class="d-lg-none d-xl-none dropdown w-100 show">
-                <button class="btn dropdown-toggle w-100" type="button" id="dropdownOptions" data-toggle="dropdown">
+                <button class="btn dropdown-toggle w-100 py-2" type="button" id="dropdownOptions" data-toggle="dropdown">
                     Options
                 </button>
-                <div class="dropdown-menu w-100 border-0 mt-0">
-                    <button type="button" class="btn btn-secondary dropdown-item w-100" v-on:click="search(); show = 0">
+                <div class="dropdown-menu w-100 border-0 mt-0 py-0">
+                    <button type="button" class="btn btn-secondary dropdown-item w-100 py-1" v-on:click="search(); show = 0">
                         <i class="fa fa-table hvr-icon"></i> Data
                     </button>
-                    <button type="button" class="btn btn-secondary dropdown-item w-100" v-on:click="getMap()">
+                    <button type="button" class="btn btn-secondary dropdown-item w-100 py-1" v-on:click="getMap()">
                         <i class="fa fa-map hvr-icon"></i> Map
                     </button>
-                    <button type="button" class="btn btn-secondary dropdown-item w-100" v-on:click="clear(); show = 3">
+                    <button type="button" class="btn btn-secondary dropdown-item w-100 py-1" v-on:click="clear(); show = 3">
                         <i class="fa fa-chart-bar hvr-icon"></i> Compare
                     </button>
-                    <button type="button" class="btn btn-secondary dropdown-item w-100" v-on:click="random()">
+                    <button type="button" class="btn btn-secondary dropdown-item w-100 py-1" v-on:click="random()">
                         <i class="fa fa-random hvr-icon"></i> Random
                     </button>
-                    <button type="button" class="btn btn-secondary dropdown-item w-100" v-on:click="clear()">
+                    <button type="button" class="btn btn-secondary dropdown-item w-100 py-1" v-on:click="clear()">
                         <i class="fa fa-times hvr-icon"></i> Clear
                     </button>
                 </div>
@@ -243,12 +244,12 @@
                     <span>{{ country.currencies[0].name }} ({{ country.currencies[0].code }})</span>
                 </div>
             </div>
-            <div class="col-xs-12 col-sm-6 col-lg-3 p-2 hvr-underline-from-center">
-                <a v-bind:href="country.wiki" class="d-flex align-items-end flex-column h-100">
-                    <div class="w-100 p-2 bg-primary text-white"><i class="fa fa-book"></i> Read Wiki</div>
+            <div class="col-xs-12 col-sm-6 col-lg-3 p-2 hvr-underline-from-center d-flex align-items-end flex-column">
+                <div class="w-100 p-2 bg-primary text-white"><i class="fa fa-book"></i> Read Wiki</div>
+                <a v-bind:href="country.wiki" class="m-auto w-100">
                     <div class="m-auto w-100">
                         <h2>Wiki</h2>
-                        <p>Find out more.</p>
+                        <span class="btn btn-sm bg-light">Find out more <i class="fa fa-search"></i></span>
                     </div>
                 </a>
             </div>

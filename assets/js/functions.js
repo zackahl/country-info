@@ -8,14 +8,11 @@ $, Vue, moment, Chart, L, Popper
 $(window).on('load', function () {
     
     // Loader
-    setInterval(function () {
-        $("#loader-icon").toggleClass("rollIn rollOut");
-    }, 1000);
     setTimeout(function () {
         $("#loader").fadeOut(400, function(){
             $(this).remove();
         });
-    }, 3000);
+    }, 2500);
     $("#content, #footer").fadeTo("slow",1);
     
     // Mobile options display on load
