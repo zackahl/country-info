@@ -43,7 +43,12 @@ $(window).on('load', function () {
 });
 
 $(document).ready(function () {
-    
+
+    // Get current year for copyright
+	var date = new Date();
+	var year = date.getFullYear();
+    document.getElementById("year").innerHTML = year;
+        
     // Get REST Countries data as mixin
     Vue.mixin({
         beforeCreate: function () {
@@ -106,7 +111,7 @@ $(document).ready(function () {
             convertType: function () {
                 if (this.convertType.length === 3) {
                     var codes = this.convertType + "_" + this.country.currencies[0].code;
-                    var conversion = "https://free.currencyconverterapi.com/api/v6/convert?q=" + codes + "&compact=y";
+                    var conversion = "https://free.currencyconverterapi.com/api/v6/convert?q=" + codes + "&compact=y&apiKey=" + config.currencyApiKey ;
                     $.get(conversion, function (data) {
                         var id = Object.values(data);
                         app.convertValue = "1 " + app.convertType + " = " + (id[0].val).toFixed(2) + " " + app.country.currencies[0].code;
