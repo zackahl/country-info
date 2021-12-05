@@ -54,7 +54,7 @@ $(document).ready(function () {
         beforeCreate: function () {
             var array = [];
             $.ajax({
-                url: 'https://restcountries.eu/rest/v2/',
+                url: 'https://restcountries.com/v3.1/all',
                 dataType: 'json',
                 success: function (data) {
                     for(var i = 0; i < data.length; i++) {
