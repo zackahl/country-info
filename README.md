@@ -7,7 +7,7 @@ Try it out here: www.country-info.com
 Zachary Kahl
 
 ### Version
-1.3
+1.4
 
 ### License
 This project is licensed under the MIT License.

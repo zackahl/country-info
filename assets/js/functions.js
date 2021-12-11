@@ -48,28 +48,12 @@ $(document).ready(function () {
 	var date = new Date();
 	var year = date.getFullYear();
     document.getElementById("year").innerHTML = year;
-        
-    // Get REST Countries data as mixin
-    Vue.mixin({
-        beforeCreate: function () {
-            var array = [];
-            $.ajax({
-                url: 'https://restcountries.com/v3.1/all',
-                dataType: 'json',
-                success: function (data) {
-                    for(var i = 0; i < data.length; i++) {
-                        array.push(data[i]);
-                    }
-                }
-            });
-            this.$allCountryData = array;
-        }
-    });
     
     // Create new Vue app
     var app = new Vue({
         el: '#content',
         data: () => ({
+            allCountries: [],
             country: {
                 name: "Country",
                 code: "Code",
@@ -104,17 +88,22 @@ $(document).ready(function () {
             errors: [],
             show: 0 // 0 = none, 1 = data, 2 = map, 3 = compare
         }),
-        
+
+        mounted() {
+            this.setData(true)
+        },
+
         watch: {
             
             // Currency conversion
             convertType: function () {
                 if (this.convertType.length === 3) {
-                    var codes = this.convertType + "_" + this.country.currencies[0].code;
+                    var code = Object.entries(this.country.currencies).map(currency => currency[0])[0]
+                    var codes = this.convertType + "_" + code;
                     var conversion = "https://free.currencyconverterapi.com/api/v6/convert?q=" + codes + "&compact=y&apiKey=5a9d8f0f18bdfd2bbadd" ;
                     $.get(conversion, function (data) {
                         var id = Object.values(data);
-                        app.convertValue = "1 " + app.convertType + " = " + (id[0].val).toFixed(2) + " " + app.country.currencies[0].code;
+                        app.convertValue = "1 " + app.convertType + " = " + (id[0].val).toFixed(2) + " " + code;
                     });
                 } else {
                     app.convertValue = "";
@@ -176,8 +165,7 @@ $(document).ready(function () {
                 if (!value) {
                     return '';
                 } else {
-                    value = value.toString();
-                    return value.replace(/(\d)(?=(\d\d\d)+(?!\d))/g, "$1,");
+                    return value.toLocaleString()
                 }
             },
             
@@ -200,6 +188,7 @@ $(document).ready(function () {
             
             // Remove parenthesis
             removeParenthesis: function (value) {
+                value = typeof value === 'string' ? value : value.common
                 value = value.replace(/\s*\(.*?\)\s*/g, ' ');
                 value = value.replace(/[)]/g, '');
                 value = value.replace(/\s*,\D\s*/g, ", ");
@@ -210,6 +199,37 @@ $(document).ready(function () {
         }),
         
         methods: ({
+
+            // Get REST Countries data
+            setData: function (randomCountry) {
+                let filters = ['name','cca2','cca3','flags','capital','region','subregion','area','borders','population','latlng','currencies','languages','timezones']
+                $.ajax({
+                    url: 'https://restcountries.com/v3.1/all?fields=' + filters.join(','),
+                    dataType: 'json',
+                    origin: '*', 
+                    success: function (data) {
+                        // API call
+                        app.allCountries = data
+                        setTimeout(() => {
+                            if (data && randomCountry) {   
+                                app.random()
+                            }
+                        }, 1000);
+                    },
+                    error: function () {
+                        // Offline / fallback
+                        fetch('/assets/json/v3-1_filtered.json')
+                        .then(response => response.json())
+                        .then(data => {
+                            app.allCountries = data
+                            if (data && randomCountry) {   
+                                app.random()
+                            }
+                        })
+                        .catch(error => console.log(error));
+                    }
+                });
+            },
 
             // Input validation -----------------------------------------------------------------------------------------
             validate: function (value) {
@@ -243,8 +263,8 @@ $(document).ready(function () {
                 
                 // If code type: 2 digits only
                 if (type === "Code") {
-                    if (value.length != 2) {
-                        app.errors.push("Code must be 2 characters.");
+                    if (value.length < 2 || value.length > 3) {
+                        app.errors.push("Code must be 2-3 characters.");
                     }
                 }
                 
@@ -268,205 +288,197 @@ $(document).ready(function () {
                     case "ENGLAND": case "SCOTLAND": case "WALES":
                         app.searchValue = "United Kingdom";
                         break;
-                    case "SOUTH KOREA": case "KOREA":
-                        app.searchValue = "Korea (Republic of)";
-                        break;
-                    case "NORTH KOREA":
-                        app.searchValue = "Korea (Democratic People's Republic of)";
-                        break;
-                    case "UNITED STATES": case "UNITED":
-                        app.searchValue = "United States of America";
-                        break;
-                    case "IVORY COAST":
-                        app.searchValue = "Côte d'Ivoire";
-                        break;
+                    case "UNITED STATES OF AMERICA":
+                        app.searchValue = "United States";
+                    case "KOREA":
+                        app.searchValue = "South Korea";
                     case "EAST TIMOR":
                         app.searchValue = "Timor-Leste";
                         break;
-                    case "VIETNAM":
-                        app.searchValue = "Viet Nam";
-                        break;
-                    case "LAOS":
-                        app.searchValue = "Lao People's Democratic Republic";
-                        break;
-                    case "VATICAN": case "VATICAN CITY":
-                        app.searchValue = "Holy See";
-                        break;
-                    case "INDIA": case "GUINEA": case "SAMOA": case "SUDAN":
+                    case "UNITED STATES": case "INDIA": case "GUINEA": case "SAMOA": case "SUDAN":
                         index = 1;
                         break;
                 }
                 
-                // Search countries for matching value and type
-                var country = this.$allCountryData.filter(function(e) {
-                    if(app.searchType === "Name"){
-                        return (e.name.toUpperCase()).includes(app.searchValue.toUpperCase());
-                    } else if(app.searchType === "Code"){
-                        return (e.alpha2Code.toUpperCase()).includes(app.searchValue.toUpperCase());
-                    } else if(app.searchType === "Capital"){
-                        return (e.capital.toUpperCase()).includes(app.searchValue.toUpperCase());
-                    }
-                });
+                if (app.allCountries.length > 0) {
+                    // Search countries for matching value and type
+                    var country = app.allCountries.filter((country) => {
+                        if(app.searchType === "Name"){
+                            return (country.name.common.toUpperCase()).includes(app.searchValue.toUpperCase());
+                        } else if(app.searchType === "Code"){
+                            if (app.searchValue.toUpperCase().length === 2) {
+                                return (country.cca2.toUpperCase()).includes(app.searchValue.toUpperCase());
+                            } else {
+                                return (country.cca3.toUpperCase()).includes(app.searchValue.toUpperCase());
+                            }
+                        } else if(app.searchType === "Capital"){
+                            if (country.capital[0]) {
+                                return (country.capital[0].toUpperCase()).includes(app.searchValue.toUpperCase());
+                            }
+                        }
+                    });
 
-                // If no errors assign country data
-                if(app.searchValue !== "" && country.length === 0){
-                    app.errors.push(app.searchValue.toUpperCase() + " is not valid, please ensure spelling and search type are correct."); 
-                } else {
-                    app.country.name = country[index].name;
-                    app.country.code = country[index].alpha2Code;
-                    app.country.flag = country[index].flag;
-                    app.country.capital = country[index].capital;
-                    app.country.region = country[index].region;
-                    app.country.subregion = country[index].subregion;
-                    app.country.area = country[index].area;
-                    app.country.borders = country[index].borders;
-                    app.country.population = country[index].population;
-                    app.country.latlng = country[index].latlng;
-                    app.country.currencies = country[index].currencies;
-                    app.country.languages = country[index].languages;
-                    app.country.timezones = country[index].timezones;
-                    app.country.wiki = "https://en.wikipedia.org/wiki/" + country[index].name;
-                    app.utc = moment.utc().format('hh:mmA');
+                    console.log('Entered country: ', country)
+
+                    // If no errors assign country data
+                    if(app.searchValue !== "" && country.length === 0){
+                        app.errors.push(app.searchValue.toUpperCase() + " is not valid, please ensure spelling and search type are correct."); 
+                    } else {
+                        app.country.name = country[index].name.common;
+                        app.country.code = country[index].cca3;
+                        app.country.flag = country[index].flags.svg;
+                        app.country.capital = country[index].capital;
+                        app.country.region = country[index].region;
+                        app.country.subregion = country[index].subregion;
+                        app.country.area = country[index].area;
+                        app.country.borders = country[index].borders;
+                        app.country.population = country[index].population;
+                        app.country.latlng = country[index].latlng;
+                        app.country.currencies = country[index].currencies;
+                        app.country.languages = Object.entries(country[index].languages).map(lng => lng[1]);
+                        app.country.timezones = country[index].timezones;
+                        app.country.wiki = "https://en.wikipedia.org/wiki/" + country[index].name.common;
+                        app.utc = moment.utc().format('hh:mmA');
+                    }
+
+                    // AFTER DATA FETCH: Exception handling and special cases
+                    switch(app.country.name){
+                        case "Bolivia (Plurinational State of)":
+                            app.country.name = "Bolivia";
+                            break;
+                        case "Bonaire, Sint Eustatius and Saba":
+                            app.country.name = "Bonaire";
+                            break;
+                        case "Virgin Islands (British)":
+                            app.country.name = "British Virgin Islands";
+                            break;
+                        case "Virgin Islands (U.S.)":
+                            app.country.name = "United States Virgin Islands";
+                            break;
+                        case "Brunei Darussalam":
+                            app.country.name = "Brunei";
+                            break;
+                        case "Cabo Verde":
+                            app.country.name = "Cape Verde";
+                            break;
+                        case "Congo (Democratic Republic of the)":
+                            app.country.name = "Democratic Republic of the Congo";
+                            break;
+                        case "Congo":
+                            app.country.name = "Democratic Republic of the Congo";
+                            break;
+                        case "Falkland Islands (Malvinas)":
+                            app.country.name = "Falkland Islands";
+                            break;
+                        case "French Southern Territories":
+                            app.country.name = "French Southern and Antarctic Lands";
+                            break;
+                        case "Iran (Islamic Republic of)":
+                            app.country.name = "Iran";
+                            break;
+                        case "Lao People's Democratic Republic":
+                            app.country.name = "Laos";
+                            break;
+                        case "Macedonia (the former Yugoslav Republic of)":
+                            app.country.name = "Republic of Macedonia";
+                            break;
+                        case "Micronesia (Federated States of)":
+                            app.country.name = "Micronesia";
+                            break;
+                        case "Moldova (Republic of)":
+                            app.country.name = "Moldova";
+                            break;
+                        case "Palestine, State of":
+                            app.country.name = "Palestine (region)";
+                            break;
+                        case "Russian Federation":
+                            app.country.name = "Russia";
+                            break;
+                        case "Saint Martin (French part)":
+                            app.country.name = "Saint Martin";
+                            break;
+                        case "Sint Maarten (Dutch part)":
+                            app.country.name = "Sint Maarten";
+                            break;
+                        case "Sao Tome and Principe":
+                            app.country.name = "São Tomé and Príncipe";
+                            break;
+                        case "Korea (Republic of)":
+                            app.country.name = "South Korea";
+                            break;
+                        case "Korea (Democratic People's Republic of)":
+                            app.country.name = "North Korea";
+                            break;
+                        case "Syrian Arab Republic":
+                            app.country.name = "Syria";
+                            break;
+                        case "Tanzania, United Republic of":
+                            app.country.name = "Tanzania";
+                            break;
+                        case "Timor-Leste":
+                            app.country.name = "East Timor";
+                            break;
+                        case "United Kingdom of Great Britain and Northern Ireland":
+                            app.country.name = "United Kingdom";
+                            break;
+                        case "United States of America":
+                            app.country.name = "United States";
+                            break;
+                        case "Venezuela (Bolivarian Republic of)":
+                            app.country.name = "Venezuela";
+                            break;
+                        case "Georgia":
+                            app.country.name = "Georgia (country)";
+                            break;
+                        case "Macao":
+                            app.country.name = "Macau";
+                            break;
+                        case "Côte d'Ivoire":
+                            app.country.name = "Ivory Coast";
+                            break;
+                        case "Gambia":
+                            app.country.name = "The Gambia";
+                            break;
+                        case "Pitcairn":
+                            app.country.name = "Pitcairn Islands";
+                            break;
+                        case "Republic of Kosovo":
+                            app.country.name = "Kosovo";
+                            break;
+                    }
+
+                    // GET country description from MediaWiki API
+                    $.ajax({
+                        method: "GET",
+                        url: "https://en.wikipedia.org/w/api.php",
+                        data: {
+                            action: "query",
+                            exintro: true,                     // Return only content before the first section.
+                            explaintext: true,                 // Return extracts as plain text instead of limited HTML.
+                            exsentences: 4,                    // Number of sentences from extract
+                            format: "json",
+                            origin: '*',                       // CORS
+                            prop: "extracts",                  // Which properties to get for the queried pages
+                            titles: app.country.name,   // titles to search
+                        }
+                    })
+                    .then((response) => {
+                        if (response) {
+                            // Each page
+                            var pages = response.query.pages;
+                            // Extract from pages
+                            var extract = pages[Object.keys(pages)[0]].extract;
+                            // If there is no extract
+                            if (!extract) {
+                                extract = "No description found, please see wiki for more information.";
+                            }
+                            // Remove the text within parenthesis
+                            extract = app.$options.filters.removeParenthesis(extract);
+                            // Asign extract to description
+                            app.country.desc = extract;
+                        }
+                    });
                 }
-
-                // AFTER DATA FETCH: Exception handling and special cases
-                switch(app.country.name){
-                    case "Bolivia (Plurinational State of)":
-                        app.country.name = "Bolivia";
-                        break;
-                    case "Bonaire, Sint Eustatius and Saba":
-                        app.country.name = "Bonaire";
-                        break;
-                    case "Virgin Islands (British)":
-                        app.country.name = "British Virgin Islands";
-                        break;
-                    case "Virgin Islands (U.S.)":
-                        app.country.name = "United States Virgin Islands";
-                        break;
-                    case "Brunei Darussalam":
-                        app.country.name = "Brunei";
-                        break;
-                    case "Cabo Verde":
-                        app.country.name = "Cape Verde";
-                        break;
-                    case "Congo (Democratic Republic of the)":
-                        app.country.name = "Democratic Republic of the Congo";
-                        break;
-                    case "Congo":
-                        app.country.name = "Democratic Republic of the Congo";
-                        break;
-                    case "Falkland Islands (Malvinas)":
-                        app.country.name = "Falkland Islands";
-                        break;
-                    case "French Southern Territories":
-                        app.country.name = "French Southern and Antarctic Lands";
-                        break;
-                    case "Iran (Islamic Republic of)":
-                        app.country.name = "Iran";
-                        break;
-                    case "Lao People's Democratic Republic":
-                        app.country.name = "Laos";
-                        break;
-                    case "Macedonia (the former Yugoslav Republic of)":
-                        app.country.name = "Republic of Macedonia";
-                        break;
-                    case "Micronesia (Federated States of)":
-                        app.country.name = "Micronesia";
-                        break;
-                    case "Moldova (Republic of)":
-                        app.country.name = "Moldova";
-                        break;
-                    case "Palestine, State of":
-                        app.country.name = "Palestine (region)";
-                        break;
-                    case "Russian Federation":
-                        app.country.name = "Russia";
-                        break;
-                    case "Saint Martin (French part)":
-                        app.country.name = "Saint Martin";
-                        break;
-                    case "Sint Maarten (Dutch part)":
-                        app.country.name = "Sint Maarten";
-                        break;
-                    case "Sao Tome and Principe":
-                        app.country.name = "São Tomé and Príncipe";
-                        break;
-                    case "Korea (Republic of)":
-                        app.country.name = "South Korea";
-                        break;
-                    case "Korea (Democratic People's Republic of)":
-                        app.country.name = "North Korea";
-                        break;
-                    case "Syrian Arab Republic":
-                        app.country.name = "Syria";
-                        break;
-                    case "Tanzania, United Republic of":
-                        app.country.name = "Tanzania";
-                        break;
-                    case "Timor-Leste":
-                        app.country.name = "East Timor";
-                        break;
-                    case "United Kingdom of Great Britain and Northern Ireland":
-                        app.country.name = "United Kingdom";
-                        break;
-                    case "United States of America":
-                        app.country.name = "United States";
-                        break;
-                    case "Venezuela (Bolivarian Republic of)":
-                        app.country.name = "Venezuela";
-                        break;
-                    case "Georgia":
-                        app.country.name = "Georgia (country)";
-                        break;
-                    case "Macao":
-                        app.country.name = "Macau";
-                        break;
-                    case "Viet Nam":
-                        app.country.name = "Vietnam";
-                        break;
-                    case "Côte d'Ivoire":
-                        app.country.name = "Ivory Coast";
-                        break;
-                    case "Gambia":
-                        app.country.name = "The Gambia";
-                        break;
-                    case "Pitcairn":
-                        app.country.name = "Pitcairn Islands";
-                        break;
-                    case "Republic of Kosovo":
-                        app.country.name = "Kosovo";
-                        break;
-                }
-
-                // GET country description from MediaWiki API
-                $.ajax({
-                    method: "GET",
-                    url: "https://en.wikipedia.org/w/api.php",
-                    data: {
-                        format: "json",
-                        action: "query",
-                        titles: app.country.name,   // titles to search
-                        prop: "extracts",           // Which properties to get for the queried pages
-                        exintro: true,              // Return only content before the first section.
-                        explaintext: true,          // Return extracts as plain text instead of limited HTML.
-                        exsentences: 4,             // Number of sentences from extract
-                        origin: '*'                 // CORS        
-                    }
-                })
-                .done(function (response) {
-                    // Each page
-                    var pages = response.query.pages;
-                    // Extract from pages
-                    var extract = pages[Object.keys(pages)[0]].extract;
-                    // If there is no extract
-                    if (extract === undefined || extract === "") {
-                        extract = "No description found, please see wiki for more information.";
-                    }
-                    // Remove the text within parenthesis
-                    extract = app.$options.filters.removeParenthesis(extract);
-                    // Asign extract to description
-                    app.country.desc = extract;
-                });
                 
                 // No result if errors exist
                 if (app.errors.length > 1) {
@@ -559,7 +571,9 @@ $(document).ready(function () {
                  
                 // Reset
                 app.iterator = 0;
-                app.compareNames = []; app.comparePops = []; app.compareAreas = [];
+                app.compareNames = [];
+                app.comparePops = [];
+                app.compareAreas = [];
                                 
                 // Convert comma separated string to array
                 var compareString = app.compareValue;
@@ -660,11 +674,15 @@ $(document).ready(function () {
                 var getChartData = function(){
                     var compareVal = compareArray[app.iterator].toUpperCase().trim();
                     // Filter to see if current list value exists
-                    country = app.$allCountryData.filter(function(e) {
-                        if(app.compareType === "Names"){
-                            return (e.name.toUpperCase()).includes(compareVal);
-                        } else if(app.compareType === "Codes"){
-                            return (e.alpha2Code.toUpperCase()).includes(compareVal);
+                    country = app.allCountries.filter(function(country) {
+                        if (app.compareType === "Names"){
+                            return (country.name.common.toUpperCase()).includes(compareVal);
+                        } else if (app.compareType === "Codes"){
+                            if (compare.length === 2) {
+                                return (country.cca2.toUpperCase()).includes(compareVal);
+                            } else {
+                                return (country.cca3.toUpperCase()).includes(compareVal);
+                            }
                         }
                     });
                     // If it does not exist, return an error
@@ -677,7 +695,7 @@ $(document).ready(function () {
                         return 0;
                     }
                     // push values to separate arrays
-                    app.compareNames.push(country[0].name);
+                    app.compareNames.push(country[0].name.common);
                     app.comparePops.push(country[0].population);
                     app.compareAreas.push(country[0].area);
                 };
@@ -699,8 +717,8 @@ $(document).ready(function () {
             random() {
                 
                 // Get country names
-                var rand = Math.floor((Math.random() * this.$allCountryData.length - 1) + 1);
-                var randomCountry = this.$allCountryData[rand].name;
+                var rand = Math.floor((Math.random() * app.allCountries.length - 1) + 1);
+                var randomCountry = app.allCountries[rand].name.common;
                 app.searchType = "Name";
                 app.search(randomCountry);
                 
@@ -727,6 +745,7 @@ $(document).ready(function () {
                 
                 // Clear all data by creating original Vue object
                 Object.assign(this.$data, this.$options.data());
+                this.setData(false)
                 
                 // Display appropriate view after clear
                 if(currentShow < 3){
